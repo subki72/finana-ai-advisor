@@ -1,30 +1,43 @@
-import streamlit as st
-from chatbot import chatbot
+"""Streamlit web UI entrypoint for Finana AI Financial Advisor."""
 
-# ── Page config ───────────────────────────────────────
-st.set_page_config(
-    page_title="Finana — AI Financial Advisor",
-    page_icon="$",
-    layout="wide",
+from __future__ import annotations
+
+import logging
+
+import streamlit as st
+
+try:
+    from src.calculators import calculate_budget_50_30_20
+    from src.chatbot import chatbot
+    from src.config import configure_logging
+except ModuleNotFoundError:  # pragma: no cover - supports `streamlit run` from inside src/
+    from calculators import calculate_budget_50_30_20
+    from chatbot import chatbot
+    from config import configure_logging
+
+logger = logging.getLogger(__name__)
+
+QUICK_PROMPTS: tuple[str, ...] = (
+    "Gaji 5jt, gimana ngaturnya?",
+    "Hitung budget 50/30/20",
+    "Tips kurangin pengeluaran",
+    "Cara mulai investasi?",
+    "KPR worth it ga?",
 )
 
-# ── Custom CSS ────────────────────────────────────────
-st.markdown("""
+CUSTOM_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* Global */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
-/* Remove default Streamlit top padding and expand content */
 .block-container {
     padding: 1.5rem 2rem 1rem !important;
     max-width: 100% !important;
 }
 
-/* Header card — full width, responsive padding */
 .header-card {
     text-align: center;
     padding: 2rem 1.5rem 1rem;
@@ -62,7 +75,6 @@ html, body, [class*="css"] {
     font-weight: 400;
 }
 
-/* Quick prompt buttons — equal sizing */
 div[data-testid="stHorizontalBlock"] .stButton > button {
     border-radius: 0.5rem !important;
     font-size: 0.82rem !important;
@@ -76,12 +88,10 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     line-height: 1.3 !important;
 }
 
-/* Chat message styling */
 .stChatMessage {
     border-radius: 0.75rem !important;
 }
 
-/* Footer */
 .footer {
     text-align: center;
     color: #64748b;
@@ -91,28 +101,13 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     margin-top: 2rem;
 }
 
-/* ── Responsive breakpoints ───────────────────────── */
-
-/* Tablet (768px and below) */
 @media (max-width: 768px) {
-    .block-container {
-        padding: 1rem 1rem 1rem !important;
-    }
-    .header-card {
-        padding: 1.5rem 1rem 0.8rem;
-    }
-    .header-card h1 {
-        font-size: 1.4rem;
-    }
-    .header-card .subtitle {
-        font-size: 0.82rem;
-    }
-    .header-card .features {
-        gap: 0.8rem;
-    }
-    .header-card .features span {
-        font-size: 0.72rem;
-    }
+    .block-container { padding: 1rem 1rem 1rem !important; }
+    .header-card { padding: 1.5rem 1rem 0.8rem; }
+    .header-card h1 { font-size: 1.4rem; }
+    .header-card .subtitle { font-size: 0.82rem; }
+    .header-card .features { gap: 0.8rem; }
+    .header-card .features span { font-size: 0.72rem; }
     div[data-testid="stHorizontalBlock"] .stButton > button {
         font-size: 0.75rem !important;
         height: 3rem !important;
@@ -120,44 +115,27 @@ div[data-testid="stHorizontalBlock"] .stButton > button {
     }
 }
 
-/* Mobile (480px and below) */
 @media (max-width: 480px) {
-    .block-container {
-        padding: 0.75rem 0.5rem 0.75rem !important;
-    }
-    .header-card {
-        padding: 1.2rem 0.75rem 0.6rem;
-        border-radius: 0.75rem;
-    }
-    .header-card h1 {
-        font-size: 1.2rem;
-    }
-    .header-card .subtitle {
-        font-size: 0.75rem;
-    }
-    .header-card .features {
-        gap: 0.5rem 1rem;
-    }
-    .header-card .features span {
-        font-size: 0.68rem;
-    }
+    .block-container { padding: 0.75rem 0.5rem 0.75rem !important; }
+    .header-card { padding: 1.2rem 0.75rem 0.6rem; border-radius: 0.75rem; }
+    .header-card h1 { font-size: 1.2rem; }
+    .header-card .subtitle { font-size: 0.75rem; }
+    .header-card .features { gap: 0.5rem 1rem; }
+    .header-card .features span { font-size: 0.68rem; }
     div[data-testid="stHorizontalBlock"] .stButton > button {
         font-size: 0.7rem !important;
         height: 2.8rem !important;
         padding: 0.3rem 0.2rem !important;
     }
-    .footer {
-        font-size: 0.7rem;
-    }
+    .footer { font-size: 0.7rem; }
 }
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# ── Header with About info ────────────────────────────
-st.markdown("""
+HEADER_HTML = """
 <div class="header-card">
     <h1>Finana Bot</h1>
-    <p class="subtitle">Your casual AI-powered Financial Advisor · Powered by Llama 3.3</p>
+    <p class="subtitle">Your casual AI-powered Financial Advisor - Powered by Llama 3.3</p>
     <div class="features">
         <span>Budget Planning</span>
         <span>Financial Tips</span>
@@ -165,59 +143,102 @@ st.markdown("""
         <span>Expense Management</span>
     </div>
 </div>
-""", unsafe_allow_html=True)
+"""
 
-# ── Session state ─────────────────────────────────────
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
-# ── Quick prompts ─────────────────────────────────────
-QUICK_PROMPTS = [
-    "Gaji 5jt, gimana ngaturnya?",
-    "Hitung budget 50/30/20",
-    "Tips kurangin pengeluaran",
-    "Cara mulai investasi?",
-    "KPR worth it ga?",
-]
+def render_sidebar_calculator() -> None:
+    """Render deterministic 50/30/20 budget helper inside the Streamlit sidebar."""
+    with st.sidebar:
+        st.subheader("Quick 50/30/20 Calculator")
+        monthly_income = st.number_input(
+            "Monthly Net Income",
+            min_value=100_000.0,
+            value=5_000_000.0,
+            step=500_000.0,
+            format="%.0f",
+        )
+        allocation = calculate_budget_50_30_20(monthly_income)
+        st.metric("Needs (50%)", f"{allocation.needs:,.0f}")
+        st.metric("Wants (30%)", f"{allocation.wants:,.0f}")
+        st.metric("Savings & Invest (20%)", f"{allocation.savings:,.0f}")
 
-if not st.session_state.messages:
-    st.markdown("<p style='text-align: center; font-weight: 600;'>Quick prompts:</p>", unsafe_allow_html=True)
-    cols = st.columns(len(QUICK_PROMPTS))
-    for i, prompt in enumerate(QUICK_PROMPTS):
-        if cols[i].button(prompt, key=f"qp_{i}", use_container_width=True):
+
+def render_quick_prompts(prompts: tuple[str, ...]) -> None:
+    """Render starter prompt buttons when conversation history is empty."""
+    st.markdown(
+        "<p style='text-align: center; font-weight: 600;'>Quick prompts:</p>",
+        unsafe_allow_html=True,
+    )
+    cols = st.columns(len(prompts))
+    for index, prompt in enumerate(prompts):
+        if cols[index].button(prompt, key=f"qp_{index}", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.spinner("Thinking..."):
                 reply = chatbot(prompt, [])
             st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
 
-# ── Chat history ──────────────────────────────────────
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
 
-# ── Chat input ────────────────────────────────────────
-if user_input := st.chat_input("Ask about finances, budget, salary, investments..."):
-    st.session_state.messages.append({"role": "user", "content": user_input})
+def render_chat_history(messages: list[dict[str, str]]) -> None:
+    """Display persisted chat turns in chronological order."""
+    for message in messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+
+def handle_chat_input() -> None:
+    """Capture user chat input, invoke advisor, and append turn to session state."""
+    user_input = st.chat_input("Ask about finances, budget, salary, investments...")
+    if not user_input or not user_input.strip():
+        return
+
+    cleaned_input = user_input.strip()
+    st.session_state.messages.append({"role": "user", "content": cleaned_input})
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(cleaned_input)
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            reply = chatbot(user_input, st.session_state.messages[:-1])
+            history = st.session_state.messages[:-1]
+            reply = chatbot(cleaned_input, history)
         st.markdown(reply)
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
-# ── Reset button (centered) ──────────────────────────
-if st.session_state.messages:
-    col_l, col_c, col_r = st.columns([3, 1, 3])
-    with col_c:
-        if st.button("Reset Chat", use_container_width=True):
-            st.session_state.messages = []
-            st.rerun()
 
-# ── Footer ────────────────────────────────────────────
-st.markdown(
-    '<div class="footer">Finana may make mistakes. Always verify financial decisions with a professional.</div>',
-    unsafe_allow_html=True,
-)
+def main() -> None:
+    """Configure page layout and run the Finana Streamlit UI loop."""
+    configure_logging()
+    st.set_page_config(
+        page_title="Finana - AI Financial Advisor",
+        page_icon="$",
+        layout="wide",
+    )
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+    st.markdown(HEADER_HTML, unsafe_allow_html=True)
+    render_sidebar_calculator()
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    if not st.session_state.messages:
+        render_quick_prompts(QUICK_PROMPTS)
+
+    render_chat_history(st.session_state.messages)
+    handle_chat_input()
+
+    if st.session_state.messages:
+        _, col_center, _ = st.columns([3, 1, 3])
+        with col_center:
+            if st.button("Reset Chat", use_container_width=True):
+                st.session_state.messages = []
+                logger.info("Cleared chat session history")
+                st.rerun()
+
+    st.markdown(
+        '<div class="footer">Finana may make mistakes. Always verify financial decisions with a professional.</div>',
+        unsafe_allow_html=True,
+    )
+
+
+if __name__ == "__main__":
+    main()
