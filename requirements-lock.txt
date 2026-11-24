@@ -37,7 +37,7 @@ coverage==7.17.5
     # via pytest-cov
 distro==1.9.0
     # via groq
-fastapi==0.136.0
+fastapi==0.165.0
     # via -r requirements.txt
 gitdb==4.0.12
     # via gitpython
