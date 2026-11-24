@@ -1,27 +1,40 @@
-# Python
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+id_rsa
+secrets/
+
+# Python & Virtual Environments
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg
 *.egg-info/
 dist/
 build/
-*.log
-
-# Virtual Environment
+.venv/
 venv/
 env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.log
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# VS Code
+# IDE & OS
 .vscode/
 .settings/
-
-# OS
+.idea/
 .DS_Store
 Thumbs.db
 
 # Gradio cache
 gradio_cached_examples/
-.env 
