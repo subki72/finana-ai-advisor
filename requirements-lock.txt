@@ -119,7 +119,7 @@ pytest-cov==7.1.0
     # via -r requirements.txt
 python-dateutil==4.0.0
     # via pandas
-python-dotenv==1.2.2
+python-dotenv==1.2.4
     # via -r requirements.txt
 python-multipart==0.0.34
     # via streamlit
