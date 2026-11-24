@@ -111,7 +111,7 @@ pydeck==0.9.3
     # via streamlit
 pygments==2.21.0
     # via pytest
-pytest==9.0.3
+pytest==9.2.0
     # via
     #   -r requirements.txt
     #   pytest-cov
